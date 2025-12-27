@@ -70,6 +70,74 @@ public:
     size_t size() const { return neurons.size(); }
 };
 
+// Класс MultiLayerNet - многослойная нейронная сеть (MLP)
+class MultiLayerNet {
+private:
+    Layer hiddenLayer;  // Скрытый слой
+    Layer outputLayer;  // Выходной слой
+
+public:
+    // Конструктор: создаёт сеть с заданной архитектурой
+    // numInputs - количество входов (1 для нашего x)
+    // numHidden - количество нейронов в скрытом слое
+    // numOutputs - количество выходных нейронов (1 для нашей задачи)
+    MultiLayerNet(int numInputs, int numHidden, int numOutputs, float threshold = 0.0f)
+        : hiddenLayer(numHidden, numInputs, threshold),
+          outputLayer(numOutputs, numHidden, threshold) {
+    }
+
+    // Метод forwardPass: прямое распространение сигнала через всю сеть
+    // Вход -> Скрытый слой -> Выходной слой -> Результат
+    int forwardPass(float input) {
+        // Шаг 1: Входной слой просто передаёт x (без преобразований)
+        std::vector<float> inputs = {input};
+
+        // Шаг 2: Пропускаем через скрытый слой
+        std::vector<int> hiddenOutputs = hiddenLayer.propagate(inputs);
+
+        // Шаг 3: Преобразуем выходы скрытого слоя в float для входа в выходной слой
+        std::vector<float> hiddenOutputsFloat;
+        hiddenOutputsFloat.reserve(hiddenOutputs.size());
+        for (int out : hiddenOutputs) {
+            hiddenOutputsFloat.push_back(static_cast<float>(out));
+        }
+
+        // Шаг 4: Пропускаем через выходной слой
+        std::vector<int> finalOutputs = outputLayer.propagate(hiddenOutputsFloat);
+
+        // Возвращаем единственный выход сети
+        return finalOutputs[0];
+    }
+
+    // Метод для детального вывода прохода через сеть
+    void forwardPassVerbose(float input) {
+        std::vector<float> inputs = {input};
+
+        std::cout << "  Вход: x = " << input << std::endl;
+
+        // Скрытый слой
+        std::vector<int> hiddenOutputs = hiddenLayer.propagate(inputs);
+        std::cout << "  Скрытый слой (" << hiddenLayer.size() << " нейронов): [";
+        for (size_t i = 0; i < hiddenOutputs.size(); ++i) {
+            std::cout << hiddenOutputs[i];
+            if (i < hiddenOutputs.size() - 1) std::cout << ", ";
+        }
+        std::cout << "]" << std::endl;
+
+        // Выходной слой
+        std::vector<float> hiddenOutputsFloat;
+        for (int out : hiddenOutputs) {
+            hiddenOutputsFloat.push_back(static_cast<float>(out));
+        }
+        std::vector<int> finalOutputs = outputLayer.propagate(hiddenOutputsFloat);
+        std::cout << "  Выход сети: y = " << finalOutputs[0] << std::endl;
+    }
+
+    // Геттеры для доступа к слоям
+    const Layer& getHiddenLayer() const { return hiddenLayer; }
+    const Layer& getOutputLayer() const { return outputLayer; }
+};
+
 int main() {
     // Инициализация генератора случайных чисел
     srand(static_cast<unsigned>(time(nullptr)));
@@ -104,39 +172,46 @@ int main() {
     std::cout << "Всего точек: " << data.size() << std::endl;
 
     // ============================================
-    // Демонстрация работы классов Neuron и Layer
+    // Демонстрация работы MultiLayerNet (MLP)
     // ============================================
     std::cout << "\n============================================" << std::endl;
-    std::cout << "Демонстрация работы нейронной сети" << std::endl;
+    std::cout << "Многослойная нейронная сеть (MLP)" << std::endl;
     std::cout << "============================================\n" << std::endl;
 
-    // Создаём слой из 5 нейронов с 1 входом каждый (для нашего x)
-    // Порог установлен в 0.0
-    Layer layer(5, 1, 0.0f);
+    // Создаём сеть: 1 вход -> 5 нейронов в скрытом слое -> 1 выход
+    MultiLayerNet mlp(1, 5, 1, 0.0f);
 
-    // Выводим веса каждого нейрона
-    std::cout << "Инициализированные веса нейронов:" << std::endl;
-    for (size_t i = 0; i < layer.size(); ++i) {
-        const auto& neuron = layer.getNeurons()[i];
-        std::cout << "  Нейрон " << i + 1 << ": вес = " << neuron.getWeights()[0]
-                  << ", порог = " << neuron.getThreshold() << std::endl;
+    std::cout << "Архитектура сети: 1 -> 5 -> 1" << std::endl;
+    std::cout << "(1 вход, 5 нейронов в скрытом слое, 1 выход)\n" << std::endl;
+
+    // Выводим веса скрытого слоя
+    std::cout << "Веса скрытого слоя:" << std::endl;
+    const auto& hiddenNeurons = mlp.getHiddenLayer().getNeurons();
+    for (size_t i = 0; i < hiddenNeurons.size(); ++i) {
+        std::cout << "  Нейрон " << i + 1 << ": w = " << hiddenNeurons[i].getWeights()[0] << std::endl;
     }
 
-    // Берём первое значение x из файла
-    if (!data.empty()) {
-        float firstX = static_cast<float>(data[0].x);
-        std::vector<float> inputs = {firstX};
+    // Выводим веса выходного слоя
+    std::cout << "\nВеса выходного нейрона:" << std::endl;
+    const auto& outputNeurons = mlp.getOutputLayer().getNeurons();
+    std::cout << "  Выходной нейрон: w = [";
+    const auto& outputWeights = outputNeurons[0].getWeights();
+    for (size_t i = 0; i < outputWeights.size(); ++i) {
+        std::cout << outputWeights[i];
+        if (i < outputWeights.size() - 1) std::cout << ", ";
+    }
+    std::cout << "]" << std::endl;
 
-        std::cout << "\nВходное значение x = " << firstX << std::endl;
-        std::cout << "Выходы нейронов слоя:" << std::endl;
+    // Тестируем сеть на всех данных из файла
+    std::cout << "\n============================================" << std::endl;
+    std::cout << "Прямой проход (forwardPass) для всех точек:" << std::endl;
+    std::cout << "============================================\n" << std::endl;
 
-        std::vector<int> outputs = layer.propagate(inputs);
-        for (size_t i = 0; i < outputs.size(); ++i) {
-            const auto& neuron = layer.getNeurons()[i];
-            float weightedSum = firstX * neuron.getWeights()[0];
-            std::cout << "  Нейрон " << i + 1 << ": s = " << weightedSum
-                      << " -> y = " << outputs[i] << std::endl;
-        }
+    for (const auto& point : data) {
+        float inputX = static_cast<float>(point.x);
+        std::cout << "Точка x = " << inputX << " (ожидаемое y = " << point.y << "):" << std::endl;
+        mlp.forwardPassVerbose(inputX);
+        std::cout << std::endl;
     }
 
     return 0;
