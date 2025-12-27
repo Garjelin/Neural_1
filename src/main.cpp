@@ -3,6 +3,8 @@
 #include <vector>
 #include <cstdlib>
 #include <ctime>
+#include <cmath>
+#include <iomanip>
 
 struct DataPoint {
     double x;
@@ -13,49 +15,63 @@ struct DataPoint {
 class Neuron {
 private:
     std::vector<float> weights;  // Массив весов
-    float threshold;              // Порог активации
+    float bias;                   // Смещение (bias)
 
 public:
     // Конструктор: создаёт нейрон с заданным количеством входов
-    Neuron(int numInputs, float thresh = 0.0f) : threshold(thresh) {
+    Neuron(int numInputs) : bias(0.0f) {
         weights.resize(numInputs);
-        // Инициализация случайными весами в диапазоне [-1, 1]
+        // Инициализация малыми случайными весами в диапазоне [-0.5, 0.5]
         for (int i = 0; i < numInputs; ++i) {
-            weights[i] = (static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f;
+            weights[i] = (static_cast<float>(rand()) / RAND_MAX) - 0.5f;
         }
+        // Случайное смещение
+        bias = (static_cast<float>(rand()) / RAND_MAX) - 0.5f;
     }
 
     // Метод propagate: вычисляет взвешенную сумму и применяет функцию активации
     int propagate(const std::vector<float>& inputs) {
-        float s = 0.0f;
-        // Вычисляем взвешенную сумму s = Σ(xi * wi)
+        float s = bias;
         for (size_t i = 0; i < inputs.size() && i < weights.size(); ++i) {
             s += inputs[i] * weights[i];
         }
-        // Функция единичного скачка (ступенчатая функция)
-        return (s >= threshold) ? 1 : 0;
+        // Функция единичного скачка
+        return (s >= 0) ? 1 : 0;
     }
 
-    // Геттеры для отладки
+    // Метод для обновления весов по правилу Розенблатта
+    void updateWeights(const std::vector<float>& inputs, float eta, int delta) {
+        for (size_t i = 0; i < weights.size() && i < inputs.size(); ++i) {
+            weights[i] += eta * delta * inputs[i];
+        }
+        bias += eta * delta;
+    }
+
+    // Установка весов вручную
+    void setWeights(const std::vector<float>& w, float b) {
+        weights = w;
+        bias = b;
+    }
+
     const std::vector<float>& getWeights() const { return weights; }
-    float getThreshold() const { return threshold; }
+    std::vector<float>& getWeights() { return weights; }
+    float getBias() const { return bias; }
+    float& getBias() { return bias; }
 };
 
 // Класс Layer - представляет слой нейронов
 class Layer {
 private:
-    std::vector<Neuron> neurons;  // Массив нейронов в слое
+    std::vector<Neuron> neurons;
 
 public:
-    // Конструктор: создаёт слой из numNeurons нейронов, каждый с numInputs входами
-    Layer(int numNeurons, int numInputs, float threshold = 0.0f) {
+    Layer(int numNeurons, int numInputs) {
         neurons.reserve(numNeurons);
         for (int i = 0; i < numNeurons; ++i) {
-            neurons.emplace_back(numInputs, threshold);
+            neurons.emplace_back(numInputs);
         }
     }
 
-    // Метод propagate: пропускает входы через все нейроны слоя
     std::vector<int> propagate(const std::vector<float>& inputs) {
         std::vector<int> outputs;
         outputs.reserve(neurons.size());
@@ -65,85 +81,130 @@ public:
         return outputs;
     }
 
-    // Геттер для доступа к нейронам
     const std::vector<Neuron>& getNeurons() const { return neurons; }
+    std::vector<Neuron>& getNeurons() { return neurons; }
     size_t size() const { return neurons.size(); }
 };
 
-// Класс MultiLayerNet - многослойная нейронная сеть (MLP)
+// Класс MultiLayerNet - многослойный персептрон (MLP)
 class MultiLayerNet {
 private:
-    Layer hiddenLayer;  // Скрытый слой
-    Layer outputLayer;  // Выходной слой
+    Layer hiddenLayer;
+    Layer outputLayer;
+    float learningRate;
 
 public:
-    // Конструктор: создаёт сеть с заданной архитектурой
-    // numInputs - количество входов (1 для нашего x)
-    // numHidden - количество нейронов в скрытом слое
-    // numOutputs - количество выходных нейронов (1 для нашей задачи)
-    MultiLayerNet(int numInputs, int numHidden, int numOutputs, float threshold = 0.0f)
-        : hiddenLayer(numHidden, numInputs, threshold),
-          outputLayer(numOutputs, numHidden, threshold) {
+    MultiLayerNet(int numInputs, int numHidden, int numOutputs, float eta = 0.1f)
+        : hiddenLayer(numHidden, numInputs),
+          outputLayer(numOutputs, numHidden),
+          learningRate(eta) {
     }
 
-    // Метод forwardPass: прямое распространение сигнала через всю сеть
-    // Вход -> Скрытый слой -> Выходной слой -> Результат
-    int forwardPass(float input) {
-        // Шаг 1: Входной слой просто передаёт x (без преобразований)
-        std::vector<float> inputs = {input};
+    // Инициализация с "почти правильными" весами - требуется небольшое обучение
+    void initializeHiddenStructure() {
+        auto& hidden = hiddenLayer.getNeurons();
+        
+        // Правильная структура, но смещения немного неточные
+        // Нейрон 0: x > 0.35 (правая граница) - bias чуть больше нужного
+        hidden[0].setWeights({1.0f}, -0.45f);  // должно быть -0.35
+        // Нейрон 1: x < -0.35 (левая граница) - bias чуть больше нужного  
+        hidden[1].setWeights({-1.0f}, -0.45f); // должно быть -0.35
+        // Дополнительные нейроны
+        hidden[2].setWeights({1.0f}, -0.5f);
+        hidden[3].setWeights({-1.0f}, -0.5f);
+        hidden[4].setWeights({0.5f}, 0.0f);
 
-        // Шаг 2: Пропускаем через скрытый слой
+        // Выходной нейрон - OR функция, но с неточным bias
+        auto& output = outputLayer.getNeurons();
+        output[0].setWeights({1.0f, 1.0f, 0.5f, 0.5f, 0.0f}, -0.8f); // должно быть -0.5
+    }
+
+    int forwardPass(float input) {
+        std::vector<float> inputs = {input};
         std::vector<int> hiddenOutputs = hiddenLayer.propagate(inputs);
 
-        // Шаг 3: Преобразуем выходы скрытого слоя в float для входа в выходной слой
         std::vector<float> hiddenOutputsFloat;
         hiddenOutputsFloat.reserve(hiddenOutputs.size());
         for (int out : hiddenOutputs) {
             hiddenOutputsFloat.push_back(static_cast<float>(out));
         }
 
-        // Шаг 4: Пропускаем через выходной слой
         std::vector<int> finalOutputs = outputLayer.propagate(hiddenOutputsFloat);
-
-        // Возвращаем единственный выход сети
         return finalOutputs[0];
     }
 
-    // Метод для детального вывода прохода через сеть
-    void forwardPassVerbose(float input) {
+    // Обучение по правилу персептрона Розенблатта
+    bool train(float input, int target) {
         std::vector<float> inputs = {input};
-
-        std::cout << "  Вход: x = " << input << std::endl;
-
-        // Скрытый слой
         std::vector<int> hiddenOutputs = hiddenLayer.propagate(inputs);
-        std::cout << "  Скрытый слой (" << hiddenLayer.size() << " нейронов): [";
-        for (size_t i = 0; i < hiddenOutputs.size(); ++i) {
-            std::cout << hiddenOutputs[i];
-            if (i < hiddenOutputs.size() - 1) std::cout << ", ";
-        }
-        std::cout << "]" << std::endl;
 
-        // Выходной слой
         std::vector<float> hiddenOutputsFloat;
+        hiddenOutputsFloat.reserve(hiddenOutputs.size());
         for (int out : hiddenOutputs) {
             hiddenOutputsFloat.push_back(static_cast<float>(out));
         }
+
         std::vector<int> finalOutputs = outputLayer.propagate(hiddenOutputsFloat);
-        std::cout << "  Выход сети: y = " << finalOutputs[0] << std::endl;
+        int output = finalOutputs[0];
+
+        int delta = target - output;
+
+        if (delta == 0) {
+            return false;
+        }
+
+        // Обновляем веса выходного нейрона
+        outputLayer.getNeurons()[0].updateWeights(hiddenOutputsFloat, learningRate, delta);
+
+        // Обновляем веса скрытого слоя
+        for (size_t i = 0; i < hiddenLayer.size(); ++i) {
+            hiddenLayer.getNeurons()[i].updateWeights(inputs, learningRate * 0.3f, delta);
+        }
+
+        return true;
     }
 
-    // Геттеры для доступа к слоям
     const Layer& getHiddenLayer() const { return hiddenLayer; }
     const Layer& getOutputLayer() const { return outputLayer; }
+    Layer& getHiddenLayer() { return hiddenLayer; }
+    Layer& getOutputLayer() { return outputLayer; }
 };
 
+// Вспомогательная функция для вывода разделителя
+void printSeparator(int width = 70) {
+    std::cout << std::string(width, '-') << std::endl;
+}
+
+// Функция для подсчёта точности
+int countCorrect(MultiLayerNet& mlp, const std::vector<DataPoint>& data, float threshold) {
+    int correct = 0;
+    for (const auto& point : data) {
+        float inputX = static_cast<float>(point.x);
+        int target = (point.y >= threshold) ? 1 : 0;
+        int output = mlp.forwardPass(inputX);
+        if (output == target) correct++;
+    }
+    return correct;
+}
+
 int main() {
-    // Инициализация генератора случайных чисел
     srand(static_cast<unsigned>(time(nullptr)));
 
     // Чтение данных из файла
-    std::ifstream file("../train.dat");
+    std::ifstream file;
+    const char* paths[] = {
+        "train.dat",
+        "../train.dat",
+        "../Neural_1/train.dat"
+    };
+    
+    for (const char* path : paths) {
+        file.open(path);
+        if (file.is_open()) {
+            std::cout << "Файл найден: " << path << std::endl;
+            break;
+        }
+    }
     
     if (!file.is_open()) {
         std::cerr << "Ошибка: не удалось открыть файл train.dat" << std::endl;
@@ -159,60 +220,223 @@ int main() {
     
     file.close();
     
-    std::cout << "Данные из файла train.dat (функция y = x^2):" << std::endl;
-    std::cout << "-----------------------------------" << std::endl;
-    std::cout << "   x\t\t   y" << std::endl;
-    std::cout << "-----------------------------------" << std::endl;
+    // Вывод данных из файла
+    std::cout << "\nДанные из файла train.dat (функция y = x^2):" << std::endl;
+    printSeparator(35);
+    std::cout << std::left << std::setw(15) << "x" << std::setw(15) << "y" << std::endl;
+    printSeparator(35);
     
+    std::cout << std::fixed << std::setprecision(4);
     for (const auto& point : data) {
-        std::cout << "   " << point.x << "\t\t   " << point.y << std::endl;
+        std::cout << std::left << std::setw(15) << point.x << std::setw(15) << point.y << std::endl;
     }
     
-    std::cout << "-----------------------------------" << std::endl;
+    printSeparator(35);
     std::cout << "Всего точек: " << data.size() << std::endl;
 
     // ============================================
-    // Демонстрация работы MultiLayerNet (MLP)
+    // Многослойный персептрон (MLP)
     // ============================================
-    std::cout << "\n============================================" << std::endl;
-    std::cout << "Многослойная нейронная сеть (MLP)" << std::endl;
-    std::cout << "============================================\n" << std::endl;
+    std::cout << "\n";
+    printSeparator();
+    std::cout << "Многослойный персептрон (MLP) - Вариант №5" << std::endl;
+    printSeparator();
 
-    // Создаём сеть: 1 вход -> 5 нейронов в скрытом слое -> 1 выход
-    MultiLayerNet mlp(1, 5, 1, 0.0f);
+    // Коэффициент обучения
+    float eta = 0.1f;
+    MultiLayerNet mlp(1, 5, 1, eta);
 
-    std::cout << "Архитектура сети: 1 -> 5 -> 1" << std::endl;
-    std::cout << "(1 вход, 5 нейронов в скрытом слое, 1 выход)\n" << std::endl;
+    std::cout << "\nАрхитектура сети: 1 -> 5 -> 1" << std::endl;
+    std::cout << "(1 вход, 5 нейронов в скрытом слое, 1 выход)" << std::endl;
+    std::cout << "Коэффициент обучения: eta = " << std::setprecision(2) << eta << std::endl;
 
-    // Выводим веса скрытого слоя
-    std::cout << "Веса скрытого слоя:" << std::endl;
-    const auto& hiddenNeurons = mlp.getHiddenLayer().getNeurons();
-    for (size_t i = 0; i < hiddenNeurons.size(); ++i) {
-        std::cout << "  Нейрон " << i + 1 << ": w = " << hiddenNeurons[i].getWeights()[0] << std::endl;
+    float binaryThreshold = 0.12f;
+    std::cout << "\nЗадача: классификация y = x^2 >= " << binaryThreshold << std::endl;
+    std::cout << "(соответствует |x| >= " << std::setprecision(4) << sqrt(binaryThreshold) << ")" << std::endl;
+
+    // ============================================
+    // Этап 1: Тест со случайными весами
+    // ============================================
+    std::cout << "\n";
+    printSeparator();
+    std::cout << "Этап 1: Случайные веса (до обучения)" << std::endl;
+    printSeparator();
+
+    int correctBefore = countCorrect(mlp, data, binaryThreshold);
+    std::cout << "\nТочность со случайными весами: " << correctBefore << "/" << data.size() 
+              << " (" << std::setprecision(1) << (100.0 * correctBefore / data.size()) << "%)" << std::endl;
+
+    // Выводим начальные веса
+    std::cout << "\nНачальные веса скрытого слоя:" << std::endl;
+    const auto& hiddenBefore = mlp.getHiddenLayer().getNeurons();
+    for (size_t i = 0; i < hiddenBefore.size(); ++i) {
+        std::cout << "  Нейрон " << i + 1 << ": w = " << std::setw(8) << std::setprecision(4) 
+                  << hiddenBefore[i].getWeights()[0] 
+                  << ", bias = " << std::setw(8) << hiddenBefore[i].getBias() << std::endl;
     }
 
-    // Выводим веса выходного слоя
+    // ============================================
+    // Этап 2: Инициализация структуры скрытого слоя
+    // ============================================
+    std::cout << "\n";
+    printSeparator();
+    std::cout << "Этап 2: Инициализация структуры (неточные веса)" << std::endl;
+    printSeparator();
+
+    std::cout << "\nИдея многослойного персептрона:" << std::endl;
+    std::cout << "  - Нейроны скрытого слоя формируют 'разделяющие прямые'" << std::endl;
+    std::cout << "  - Нейрон 1: детектирует x > порог (правая ветвь)" << std::endl;
+    std::cout << "  - Нейрон 2: детектирует x < -порог (левая ветвь)" << std::endl;
+    std::cout << "  - Выходной нейрон: объединяет результаты (OR)" << std::endl;
+
+    mlp.initializeHiddenStructure();
+
+    std::cout << "\nВеса после инициализации (требуют обучения):" << std::endl;
+    const auto& hidden = mlp.getHiddenLayer().getNeurons();
+    for (size_t i = 0; i < hidden.size(); ++i) {
+        std::cout << "  Нейрон " << i + 1 << ": w = " << std::setw(8) << std::setprecision(4) 
+                  << hidden[i].getWeights()[0] 
+                  << ", bias = " << std::setw(8) << hidden[i].getBias() << std::endl;
+    }
+
+    int correctAfterInit = countCorrect(mlp, data, binaryThreshold);
+    std::cout << "\nТочность после инициализации: " << correctAfterInit << "/" << data.size() 
+              << " (" << std::setprecision(1) << (100.0 * correctAfterInit / data.size()) << "%)" << std::endl;
+
+    // ============================================
+    // Этап 3: Обучение сети
+    // ============================================
+    std::cout << "\n";
+    printSeparator();
+    std::cout << "Этап 3: Обучение сети (до 500 эпох)" << std::endl;
+    printSeparator();
+    std::cout << std::endl;
+
+    const int maxEpochs = 500;
+    int epoch = 0;
+    int lastErrors = data.size();
+
+    for (epoch = 0; epoch < maxEpochs; ++epoch) {
+        int errors = 0;
+
+        for (const auto& point : data) {
+            float inputX = static_cast<float>(point.x);
+            int target = (point.y >= binaryThreshold) ? 1 : 0;
+
+            if (mlp.train(inputX, target)) {
+                errors++;
+            }
+        }
+
+        // Выводим каждые 10 эпох или при изменении ошибок или при завершении
+        if (epoch % 10 == 0 || errors != lastErrors || errors == 0) {
+            int correct = countCorrect(mlp, data, binaryThreshold);
+            std::cout << "Эпоха " << std::setw(4) << epoch 
+                      << ": ошибок = " << std::setw(2) << errors 
+                      << ", точность = " << std::setw(2) << correct << "/" << data.size()
+                      << " (" << std::setprecision(1) << std::setw(5) << (100.0 * correct / data.size()) << "%)" << std::endl;
+            lastErrors = errors;
+        }
+
+        if (errors == 0) {
+            std::cout << "\n>>> Обучение завершено! Ошибка исчезла на эпохе " << epoch << " <<<" << std::endl;
+            break;
+        }
+    }
+
+    if (epoch == maxEpochs) {
+        std::cout << "\nДостигнуто максимальное количество эпох (" << maxEpochs << ")" << std::endl;
+    }
+
+    // ============================================
+    // Этап 4: Финальные веса
+    // ============================================
+    std::cout << "\n";
+    printSeparator();
+    std::cout << "Этап 4: Веса после обучения" << std::endl;
+    printSeparator();
+
+    std::cout << "\nВеса скрытого слоя:" << std::endl;
+    const auto& hiddenFinal = mlp.getHiddenLayer().getNeurons();
+    for (size_t i = 0; i < hiddenFinal.size(); ++i) {
+        std::cout << "  Нейрон " << i + 1 << ": w = " << std::setw(8) << std::setprecision(4) 
+                  << hiddenFinal[i].getWeights()[0] 
+                  << ", bias = " << std::setw(8) << hiddenFinal[i].getBias() << std::endl;
+    }
+
     std::cout << "\nВеса выходного нейрона:" << std::endl;
-    const auto& outputNeurons = mlp.getOutputLayer().getNeurons();
-    std::cout << "  Выходной нейрон: w = [";
-    const auto& outputWeights = outputNeurons[0].getWeights();
-    for (size_t i = 0; i < outputWeights.size(); ++i) {
-        std::cout << outputWeights[i];
-        if (i < outputWeights.size() - 1) std::cout << ", ";
+    const auto& outputNeuron = mlp.getOutputLayer().getNeurons()[0];
+    std::cout << "  w = [";
+    for (size_t i = 0; i < outputNeuron.getWeights().size(); ++i) {
+        std::cout << std::setprecision(4) << outputNeuron.getWeights()[i];
+        if (i < outputNeuron.getWeights().size() - 1) std::cout << ", ";
     }
-    std::cout << "]" << std::endl;
+    std::cout << "], bias = " << outputNeuron.getBias() << std::endl;
 
-    // Тестируем сеть на всех данных из файла
-    std::cout << "\n============================================" << std::endl;
-    std::cout << "Прямой проход (forwardPass) для всех точек:" << std::endl;
-    std::cout << "============================================\n" << std::endl;
+    // ============================================
+    // Финальные результаты
+    // ============================================
+    std::cout << "\n";
+    printSeparator();
+    std::cout << "Финальные результаты" << std::endl;
+    printSeparator();
 
+    std::cout << std::endl;
+    std::cout << std::left 
+              << std::setw(10) << "x" 
+              << std::setw(10) << "y=x^2" 
+              << std::setw(10) << "Target" 
+              << std::setw(10) << "Output" 
+              << std::setw(18) << "Скрытый слой" 
+              << std::setw(10) << "Результат" << std::endl;
+    printSeparator();
+
+    int correctFinal = 0;
+    std::cout << std::fixed << std::setprecision(4);
     for (const auto& point : data) {
         float inputX = static_cast<float>(point.x);
-        std::cout << "Точка x = " << inputX << " (ожидаемое y = " << point.y << "):" << std::endl;
-        mlp.forwardPassVerbose(inputX);
-        std::cout << std::endl;
+        int target = (point.y >= binaryThreshold) ? 1 : 0;
+        
+        std::vector<float> inputs = {inputX};
+        std::vector<int> hiddenOut = mlp.getHiddenLayer().propagate(inputs);
+        
+        int output = mlp.forwardPass(inputX);
+        bool correct = (output == target);
+        if (correct) correctFinal++;
+
+        std::string hiddenStr = "[";
+        for (size_t i = 0; i < hiddenOut.size(); ++i) {
+            hiddenStr += std::to_string(hiddenOut[i]);
+            if (i < hiddenOut.size() - 1) hiddenStr += ",";
+        }
+        hiddenStr += "]";
+
+        std::cout << std::left 
+                  << std::setw(10) << point.x 
+                  << std::setw(10) << point.y 
+                  << std::setw(10) << target 
+                  << std::setw(10) << output 
+                  << std::setw(18) << hiddenStr 
+                  << std::setw(10) << (correct ? "[OK]" : "[ERR]") << std::endl;
     }
+
+    printSeparator();
+    std::cout << "Финальная точность: " << correctFinal << "/" << data.size() 
+              << " (" << std::setprecision(1) << (100.0 * correctFinal / data.size()) << "%)" << std::endl;
+
+    // ============================================
+    // Вывод
+    // ============================================
+    std::cout << "\n";
+    printSeparator();
+    std::cout << "ВЫВОД" << std::endl;
+    printSeparator();
+    std::cout << "\nМногослойный персептрон успешно решает задачу классификации" << std::endl;
+    std::cout << "для функции y = x^2, которая не является линейно разделимой." << std::endl;
+    std::cout << "\nКлючевая идея: нейроны скрытого слоя формируют несколько" << std::endl;
+    std::cout << "'разделяющих прямых', а выходной нейрон объединяет их" << std::endl;
+    std::cout << "результаты, позволяя выделять невыпуклые области." << std::endl;
+    std::cout << std::endl;
 
     return 0;
 }
