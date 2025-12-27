@@ -854,7 +854,7 @@ bool generateHtmlReport(const ReportData& data, const std::string& outputPath) {
     html << R"(
 
         <!-- 9. ВЫВОД -->
-        <h2>9. Вывод</h2>
+        <h2 style="margin-top: 170px;">9. Вывод</h2>
 
         <div class="conclusion">
             <h3>Заключение</h3>
