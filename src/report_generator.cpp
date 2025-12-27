@@ -1,9 +1,11 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Лабораторная работа №1 - Многослойный персептрон</title>
+#include "report_generator.h"
+#include <fstream>
+#include <sstream>
+#include <iomanip>
+
+// Генерирует CSS стили
+static std::string generateCSS() {
+    return R"(
     <style>
         * {
             margin: 0;
@@ -234,9 +236,12 @@
             }
         }
     </style>
-</head>
-<body>
+)";
+}
 
+// Генерирует титульную страницу
+static std::string generateTitlePage() {
+    return R"(
     <div class="title-page">
         <div class="header">
             <h1>МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РФ</h1>
@@ -266,204 +271,12 @@
             <p style="text-align: center;margin: 50px 0">Тюмень, 2025</p>
         </div>
     </div>
+)";
+}
 
-    <div class="content">
-
-        <!-- 1. ЦЕЛЬ РАБОТЫ -->
-        <h2>1. Цель работы</h2>
-        <p>
-            Создание программы, реализующей искусственную нейронную сеть; разработка процедуры 
-            обучения сети; использование полученных результатов для решения тестовой задачи 
-            аппроксимации функции y = x².
-        </p>
-
-        <!-- 2. ОПИСАНИЕ МОДЕЛИ -->
-        <h2>2. Описание модели нейронной сети</h2>
-
-        <h3>2.1. Тип сети</h3>
-        <p>
-            В данной лабораторной работе реализован <strong>многослойный персептрон (MLP)</strong> 
-            с бинарными функциями активации (функция единичного скачка). Многослойная архитектура 
-            выбрана в соответствии с вариантом №5 и позволяет решать задачи, которые не являются 
-            линейно разделимыми.
-        </p>
-
-        <h3>2.2. Архитектура сети</h3>
-        <div class="architecture">
-            <h3>Структура: 1 → 5 → 1</h3>
-            <div class="layers">
-                <div class="layer">
-                    <strong>Входной слой</strong><br>
-                    1 нейрон<br>
-                    (значение x)
-                </div>
-                <div class="arrow">→</div>
-                <div class="layer">
-                    <strong>Скрытый слой</strong><br>
-                    5 нейронов<br>
-                    (разделяющие прямые)
-                </div>
-                <div class="arrow">→</div>
-                <div class="layer">
-                    <strong>Выходной слой</strong><br>
-                    1 нейрон<br>
-                    (результат: 0 или 1)
-                </div>
-            </div>
-        </div>
-
-        <p>
-            <strong>Функция активации:</strong> единичный скачок (ступенчатая функция):
-        </p>
-        <div class="formula">
-            f(s) = { 1, если s ≥ 0; 0, если s < 0 }
-        </div>
-        <p>
-            где s = Σ(wᵢ · xᵢ) + bias — взвешенная сумма входов со смещением.
-        </p>
-
-        <h3>2.3. Принцип работы многослойного персептрона</h3>
-        <p>
-            Нейроны скрытого слоя формируют «разделяющие прямые» в пространстве признаков:
-        </p>
-        <ul>
-            <li><strong>Нейрон 1:</strong> детектирует условие x > 0.35 (правая ветвь параболы)</li>
-            <li><strong>Нейрон 2:</strong> детектирует условие x < -0.35 (левая ветвь параболы)</li>
-            <li><strong>Нейроны 3-5:</strong> дополнительные границы для точной классификации</li>
-        </ul>
-        <p>
-            Выходной нейрон объединяет результаты скрытого слоя, реализуя логическую функцию OR: 
-            если хотя бы один из детекторов границ активирован, выход сети равен 1.
-        </p>
-
-        <!-- 3. ПРОЦЕДУРА ОБУЧЕНИЯ -->
-        <h2>3. Процедура обучения</h2>
-
-        <h3>3.1. Алгоритм обучения</h3>
-        <p>
-            Для обучения сети использовано <strong>правило Розенблатта</strong> (правило обучения персептрона):
-        </p>
-        <div class="formula">
-            w<sub>new</sub> = w<sub>old</sub> + η · δ · x
-        </div>
-        <p>где:</p>
-        <ul>
-            <li><strong>η = 0.1</strong> — коэффициент обучения (learning rate)</li>
-            <li><strong>δ = target - output</strong> — ошибка (разница между ожидаемым и полученным значением)</li>
-            <li><strong>x</strong> — входной сигнал</li>
-        </ul>
-
-        <h3>3.2. Правила коррекции весов</h3>
-        <table>
-            <tr>
-                <th>Ситуация</th>
-                <th>Действие</th>
-            </tr>
-            <tr>
-                <td>Выход = 0, Ожидание = 1 (δ = +1)</td>
-                <td>Увеличить веса: w = w + η·x</td>
-            </tr>
-            <tr>
-                <td>Выход = 1, Ожидание = 0 (δ = -1)</td>
-                <td>Уменьшить веса: w = w - η·x</td>
-            </tr>
-            <tr>
-                <td>Выход = Ожидание (δ = 0)</td>
-                <td>Веса не изменяются</td>
-            </tr>
-        </table>
-
-        <!-- 4. ОБУЧАЮЩИЕ ДАННЫЕ -->
-        <h2>4. Обучающие данные</h2>
-
-        <p>
-            Для обучения использована функция <strong>y = x²</strong> на интервале <strong>[-0.5, 0.5]</strong>. 
-            Задача сети — бинарная классификация: определить, когда y ≥ 0.12 (что соответствует |x| ≥ 0.346).
-        </p>
-
-        <table>
-            <tr>
-                <th>№</th>
-                <th>x</th>
-                <th>y = x²</th>
-                <th>Target (y ≥ 0.12)</th>
-            </tr>
-            <tr><td>1</td><td>-0.50</td><td>0.2500</td><td>1</td></tr>
-            <tr><td>2</td><td>-0.45</td><td>0.2025</td><td>1</td></tr>
-            <tr><td>3</td><td>-0.40</td><td>0.1600</td><td>1</td></tr>
-            <tr><td>4</td><td>-0.35</td><td>0.1225</td><td>1</td></tr>
-            <tr><td>5</td><td>-0.30</td><td>0.0900</td><td>0</td></tr>
-            <tr><td>6</td><td>-0.25</td><td>0.0625</td><td>0</td></tr>
-            <tr><td>7</td><td>-0.20</td><td>0.0400</td><td>0</td></tr>
-            <tr><td>8</td><td>-0.15</td><td>0.0225</td><td>0</td></tr>
-            <tr><td>9</td><td>-0.10</td><td>0.0100</td><td>0</td></tr>
-            <tr><td>10</td><td>-0.05</td><td>0.0025</td><td>0</td></tr>
-            <tr><td>11</td><td>0.00</td><td>0.0000</td><td>0</td></tr>
-            <tr><td>12</td><td>0.05</td><td>0.0025</td><td>0</td></tr>
-            <tr><td>13</td><td>0.10</td><td>0.0100</td><td>0</td></tr>
-            <tr><td>14</td><td>0.15</td><td>0.0225</td><td>0</td></tr>
-            <tr><td>15</td><td>0.20</td><td>0.0400</td><td>0</td></tr>
-            <tr><td>16</td><td>0.25</td><td>0.0625</td><td>0</td></tr>
-            <tr><td>17</td><td>0.30</td><td>0.0900</td><td>0</td></tr>
-            <tr><td>18</td><td>0.35</td><td>0.1225</td><td>1</td></tr>
-            <tr><td>19</td><td>0.40</td><td>0.1600</td><td>1</td></tr>
-            <tr><td>20</td><td>0.45</td><td>0.2025</td><td>1</td></tr>
-            <tr><td>21</td><td>0.50</td><td>0.2500</td><td>1</td></tr>
-        </table>
-
-        <!-- 5. ЧИСЛЕННЫЕ ЗНАЧЕНИЯ -->
-        <h2>5. Численные значения и результаты обучения</h2>
-
-        <h3>5.1. Параметры обучения</h3>
-        <table>
-            <tr>
-                <th>Параметр</th>
-                <th>Значение</th>
-            </tr>
-            <tr>
-                <td>Коэффициент обучения (η)</td>
-                <td>0.1</td>
-            </tr>
-            <tr>
-                <td>Количество эпох обучения</td>
-                <td><strong>3</strong></td>
-            </tr>
-            <tr>
-                <td>Финальная точность</td>
-                <td><strong>100.0% (21/21)</strong></td>
-            </tr>
-        </table>
-
-        <h3>5.2. Веса выходного нейрона</h3>
-        
-        <div class="weights-block">
-            <div class="label">ДО ОБУЧЕНИЯ:</div>
-            w = [1.0000, 1.0000, 0.5000, 0.5000, 0.0000], bias = -0.8000
-        </div>
-
-        <div class="weights-block">
-            <div class="label">ПОСЛЕ ОБУЧЕНИЯ:</div>
-            w = [1.0000, 1.0000, 0.5000, 0.5000, 0.1000], bias = -0.4000
-        </div>
-
-        <h3>5.3. Веса скрытого слоя после обучения</h3>
-        <table>
-            <tr>
-                <th>Нейрон</th>
-                <th>Вес (w)</th>
-                <th>Смещение (bias)</th>
-                <th>Функция</th>
-            </tr>
-            <tr><td>1</td><td>0.9775</td><td>-0.3300</td><td>Детектор x > 0.34</td></tr>
-            <tr><td>2</td><td>-1.0225</td><td>-0.3300</td><td>Детектор x < -0.32</td></tr>
-            <tr><td>3</td><td>0.9775</td><td>-0.3800</td><td>Детектор x > 0.39</td></tr>
-            <tr><td>4</td><td>-1.0225</td><td>-0.3800</td><td>Детектор x < -0.37</td></tr>
-            <tr><td>5</td><td>0.4775</td><td>0.1200</td><td>Вспомогательный</td></tr>
-        </table>
-
-        <!-- 6. ГРАФИЧЕСКОЕ ПРЕДСТАВЛЕНИЕ -->
-        <h2>6. Графическое представление результатов</h2>
-
+// Генерирует SVG-график
+static std::string generateSVGGraph() {
+    return R"(
         <div class="graph-container" style="text-align: center; margin: 20px 0;">
             <svg width="700" height="450" viewBox="0 0 700 450" style="border: 1px solid #ccc; background: #fafafa;">
                 <!-- Оси -->
@@ -562,50 +375,12 @@
                 </text>
             </svg>
         </div>
+)";
+}
 
-        <p>
-            На графике представлено сравнение эталонной функции y = x² (парабола) и результатов 
-            бинарной классификации нейронной сети. Вертикальные линии обозначают границы классификации 
-            (|x| ≈ 0.35), определённые скрытым слоем сети.
-        </p>
-
-        <!-- 7. РЕЗУЛЬТАТЫ РАБОТЫ СЕТИ -->
-        <h2>7. Итоговая таблица результатов</h2>
-
-        <table>
-            <tr>
-                <th>x</th>
-                <th>Эталон (x²)</th>
-                <th>Target</th>
-                <th>Выход сети</th>
-                <th>Результат</th>
-            </tr>
-            <tr><td>-0.50</td><td>0.2500</td><td>1</td><td>1</td><td style="color: green;">✓</td></tr>
-            <tr><td>-0.45</td><td>0.2025</td><td>1</td><td>1</td><td style="color: green;">✓</td></tr>
-            <tr><td>-0.40</td><td>0.1600</td><td>1</td><td>1</td><td style="color: green;">✓</td></tr>
-            <tr><td>-0.35</td><td>0.1225</td><td>1</td><td>1</td><td style="color: green;">✓</td></tr>
-            <tr><td>-0.30</td><td>0.0900</td><td>0</td><td>0</td><td style="color: green;">✓</td></tr>
-            <tr><td>-0.25</td><td>0.0625</td><td>0</td><td>0</td><td style="color: green;">✓</td></tr>
-            <tr><td>-0.20</td><td>0.0400</td><td>0</td><td>0</td><td style="color: green;">✓</td></tr>
-            <tr><td>-0.15</td><td>0.0225</td><td>0</td><td>0</td><td style="color: green;">✓</td></tr>
-            <tr><td>-0.10</td><td>0.0100</td><td>0</td><td>0</td><td style="color: green;">✓</td></tr>
-            <tr><td>-0.05</td><td>0.0025</td><td>0</td><td>0</td><td style="color: green;">✓</td></tr>
-            <tr><td>0.00</td><td>0.0000</td><td>0</td><td>0</td><td style="color: green;">✓</td></tr>
-            <tr><td>0.05</td><td>0.0025</td><td>0</td><td>0</td><td style="color: green;">✓</td></tr>
-            <tr><td>0.10</td><td>0.0100</td><td>0</td><td>0</td><td style="color: green;">✓</td></tr>
-            <tr><td>0.15</td><td>0.0225</td><td>0</td><td>0</td><td style="color: green;">✓</td></tr>
-            <tr><td>0.20</td><td>0.0400</td><td>0</td><td>0</td><td style="color: green;">✓</td></tr>
-            <tr><td>0.25</td><td>0.0625</td><td>0</td><td>0</td><td style="color: green;">✓</td></tr>
-            <tr><td>0.30</td><td>0.0900</td><td>0</td><td>0</td><td style="color: green;">✓</td></tr>
-            <tr><td>0.35</td><td>0.1225</td><td>1</td><td>1</td><td style="color: green;">✓</td></tr>
-            <tr><td>0.40</td><td>0.1600</td><td>1</td><td>1</td><td style="color: green;">✓</td></tr>
-            <tr><td>0.45</td><td>0.2025</td><td>1</td><td>1</td><td style="color: green;">✓</td></tr>
-            <tr><td>0.50</td><td>0.2500</td><td>1</td><td>1</td><td style="color: green;">✓</td></tr>
-        </table>
-
-        <!-- 8. ИСХОДНЫЙ КОД -->
-        <h2>8. Исходный текст программы</h2>
-<div class="code-block">
+// Генерирует исходный код для отчёта
+static std::string generateSourceCode() {
+    return R"(<div class="code-block">
 <code>#include &lt;iostream&gt;
 #include &lt;fstream&gt;
 #include &lt;vector&gt;
@@ -802,7 +577,281 @@ int main() {
 
     return 0;
 }</code>
+        </div>)";
+}
+
+bool generateHtmlReport(const ReportData& data, const std::string& outputPath) {
+    std::ofstream file(outputPath);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    std::ostringstream html;
+    html << std::fixed;
+
+    // Начало документа
+    html << R"(<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лабораторная работа №1 - Многослойный персептрон</title>)";
+    
+    html << generateCSS();
+    
+    html << R"(</head>
+<body>
+)";
+
+    // Титульная страница
+    html << generateTitlePage();
+
+    // Основной контент
+    html << R"(
+    <div class="content">
+
+        <!-- 1. ЦЕЛЬ РАБОТЫ -->
+        <h2>1. Цель работы</h2>
+        <p>
+            Создание программы, реализующей искусственную нейронную сеть; разработка процедуры 
+            обучения сети; использование полученных результатов для решения тестовой задачи 
+            аппроксимации функции y = x².
+        </p>
+
+        <!-- 2. ОПИСАНИЕ МОДЕЛИ -->
+        <h2>2. Описание модели нейронной сети</h2>
+
+        <h3>2.1. Тип сети</h3>
+        <p>
+            В данной лабораторной работе реализован <strong>многослойный персептрон (MLP)</strong> 
+            с бинарными функциями активации (функция единичного скачка). Многослойная архитектура 
+            выбрана в соответствии с вариантом №5 и позволяет решать задачи, которые не являются 
+            линейно разделимыми.
+        </p>
+
+        <h3>2.2. Архитектура сети</h3>
+        <div class="architecture">
+            <h3>Структура: )" << data.numInputs << " → " << data.numHidden << " → " << data.numOutputs << R"(</h3>
+            <div class="layers">
+                <div class="layer">
+                    <strong>Входной слой</strong><br>
+                    )" << data.numInputs << R"( нейрон<br>
+                    (значение x)
+                </div>
+                <div class="arrow">→</div>
+                <div class="layer">
+                    <strong>Скрытый слой</strong><br>
+                    )" << data.numHidden << R"( нейронов<br>
+                    (разделяющие прямые)
+                </div>
+                <div class="arrow">→</div>
+                <div class="layer">
+                    <strong>Выходной слой</strong><br>
+                    )" << data.numOutputs << R"( нейрон<br>
+                    (результат: 0 или 1)
+                </div>
+            </div>
         </div>
+
+        <p>
+            <strong>Функция активации:</strong> единичный скачок (ступенчатая функция):
+        </p>
+        <div class="formula">
+            f(s) = { 1, если s ≥ 0; 0, если s < 0 }
+        </div>
+        <p>
+            где s = Σ(wᵢ · xᵢ) + bias — взвешенная сумма входов со смещением.
+        </p>
+
+        <h3>2.3. Принцип работы многослойного персептрона</h3>
+        <p>
+            Нейроны скрытого слоя формируют «разделяющие прямые» в пространстве признаков:
+        </p>
+        <ul>
+            <li><strong>Нейрон 1:</strong> детектирует условие x > 0.35 (правая ветвь параболы)</li>
+            <li><strong>Нейрон 2:</strong> детектирует условие x < -0.35 (левая ветвь параболы)</li>
+            <li><strong>Нейроны 3-5:</strong> дополнительные границы для точной классификации</li>
+        </ul>
+        <p>
+            Выходной нейрон объединяет результаты скрытого слоя, реализуя логическую функцию OR: 
+            если хотя бы один из детекторов границ активирован, выход сети равен 1.
+        </p>
+
+        <!-- 3. ПРОЦЕДУРА ОБУЧЕНИЯ -->
+        <h2>3. Процедура обучения</h2>
+
+        <h3>3.1. Алгоритм обучения</h3>
+        <p>
+            Для обучения сети использовано <strong>правило Розенблатта</strong> (правило обучения персептрона):
+        </p>
+        <div class="formula">
+            w<sub>new</sub> = w<sub>old</sub> + η · δ · x
+        </div>
+        <p>где:</p>
+        <ul>
+            <li><strong>η = )" << std::setprecision(1) << data.learningRate << R"(</strong> — коэффициент обучения (learning rate)</li>
+            <li><strong>δ = target - output</strong> — ошибка (разница между ожидаемым и полученным значением)</li>
+            <li><strong>x</strong> — входной сигнал</li>
+        </ul>
+
+        <h3>3.2. Правила коррекции весов</h3>
+        <table>
+            <tr>
+                <th>Ситуация</th>
+                <th>Действие</th>
+            </tr>
+            <tr>
+                <td>Выход = 0, Ожидание = 1 (δ = +1)</td>
+                <td>Увеличить веса: w = w + η·x</td>
+            </tr>
+            <tr>
+                <td>Выход = 1, Ожидание = 0 (δ = -1)</td>
+                <td>Уменьшить веса: w = w - η·x</td>
+            </tr>
+            <tr>
+                <td>Выход = Ожидание (δ = 0)</td>
+                <td>Веса не изменяются</td>
+            </tr>
+        </table>
+
+        <!-- 4. ОБУЧАЮЩИЕ ДАННЫЕ -->
+        <h2>4. Обучающие данные</h2>
+
+        <p>
+            Для обучения использована функция <strong>y = x²</strong> на интервале <strong>[-0.5, 0.5]</strong>. 
+            Задача сети — бинарная классификация: определить, когда y ≥ )" << std::setprecision(2) << data.binaryThreshold << R"( (что соответствует |x| ≥ 0.346).
+        </p>
+
+        <table>
+            <tr>
+                <th>№</th>
+                <th>x</th>
+                <th>y = x²</th>
+                <th>Target (y ≥ )" << std::setprecision(2) << data.binaryThreshold << R"()</th>
+            </tr>)";
+
+    // Таблица обучающих данных
+    int rowNum = 1;
+    for (const auto& row : data.results) {
+        html << "\n            <tr><td>" << rowNum++ << "</td><td>" 
+             << std::setprecision(2) << row.x << "</td><td>" 
+             << std::setprecision(4) << row.y << "</td><td>" 
+             << row.target << "</td></tr>";
+    }
+
+    html << R"(
+        </table>
+
+        <!-- 5. ЧИСЛЕННЫЕ ЗНАЧЕНИЯ -->
+        <h2>5. Численные значения и результаты обучения</h2>
+
+        <h3>5.1. Параметры обучения</h3>
+        <table>
+            <tr>
+                <th>Параметр</th>
+                <th>Значение</th>
+            </tr>
+            <tr>
+                <td>Коэффициент обучения (η)</td>
+                <td>)" << std::setprecision(1) << data.learningRate << R"(</td>
+            </tr>
+            <tr>
+                <td>Количество эпох обучения</td>
+                <td><strong>)" << data.totalEpochs << R"(</strong></td>
+            </tr>
+            <tr>
+                <td>Финальная точность</td>
+                <td><strong>)" << std::setprecision(1) << (100.0 * data.correctCount / data.totalCount) 
+                << "% (" << data.correctCount << "/" << data.totalCount << R"()</strong></td>
+            </tr>
+        </table>
+
+        <h3>5.2. Веса выходного нейрона</h3>
+        
+        <div class="weights-block">
+            <div class="label">ДО ОБУЧЕНИЯ:</div>
+            )" << data.weightsBefore << R"(
+        </div>
+
+        <div class="weights-block">
+            <div class="label">ПОСЛЕ ОБУЧЕНИЯ:</div>
+            )" << data.weightsAfter << R"(
+        </div>
+
+        <h3>5.3. Веса скрытого слоя после обучения</h3>
+        <table>
+            <tr>
+                <th>Нейрон</th>
+                <th>Вес (w)</th>
+                <th>Смещение (bias)</th>
+                <th>Функция</th>
+            </tr>)";
+
+    // Веса скрытого слоя
+    const char* functions[] = {
+        "Детектор x > 0.34",
+        "Детектор x < -0.32",
+        "Детектор x > 0.39",
+        "Детектор x < -0.37",
+        "Вспомогательный"
+    };
+    
+    for (size_t i = 0; i < data.hiddenWeights.size() && i < 5; ++i) {
+        html << "\n            <tr><td>" << (i + 1) << "</td><td>" 
+             << std::setprecision(4) << data.hiddenWeights[i].weight << "</td><td>" 
+             << std::setprecision(4) << data.hiddenWeights[i].bias << "</td><td>" 
+             << functions[i] << "</td></tr>";
+    }
+
+    html << R"(
+        </table>
+
+        <!-- 6. ГРАФИЧЕСКОЕ ПРЕДСТАВЛЕНИЕ -->
+        <h2>6. Графическое представление результатов</h2>
+)";
+
+    html << generateSVGGraph();
+
+    html << R"(
+        <p>
+            На графике представлено сравнение эталонной функции y = x² (парабола) и результатов 
+            бинарной классификации нейронной сети. Вертикальные линии обозначают границы классификации 
+            (|x| ≈ 0.35), определённые скрытым слоем сети.
+        </p>
+
+        <!-- 7. РЕЗУЛЬТАТЫ РАБОТЫ СЕТИ -->
+        <h2>7. Итоговая таблица результатов</h2>
+
+        <table>
+            <tr>
+                <th>x</th>
+                <th>Эталон (x²)</th>
+                <th>Target</th>
+                <th>Выход сети</th>
+                <th>Результат</th>
+            </tr>)";
+
+    // Таблица результатов
+    for (const auto& row : data.results) {
+        bool correct = (row.output == row.target);
+        html << "\n            <tr><td>" << std::setprecision(2) << row.x 
+             << "</td><td>" << std::setprecision(4) << row.y 
+             << "</td><td>" << row.target 
+             << "</td><td>" << row.output 
+             << "</td><td style=\"color: " << (correct ? "green" : "red") << ";\">" 
+             << (correct ? "✓" : "✗") << "</td></tr>";
+    }
+
+    html << R"(
+        </table>
+
+        <!-- 8. ИСХОДНЫЙ КОД -->
+        <h2>8. Исходный текст программы</h2>
+)";
+
+    html << generateSourceCode();
+
+    html << R"(
 
         <!-- 9. ВЫВОД -->
         <h2>9. Вывод</h2>
@@ -817,10 +866,10 @@ int main() {
                 <strong>Основные результаты:</strong>
             </p>
             <ul>
-                <li>Многослойная архитектура (1 → 5 → 1) позволила успешно решить задачу бинарной 
+                <li>Многослойная архитектура ()" << data.numInputs << " → " << data.numHidden << " → " << data.numOutputs << R"() позволила успешно решить задачу бинарной 
                     классификации для функции y = x², которая <strong>не является линейно разделимой</strong>.</li>
-                <li>Обучение по правилу Розенблатта завершилось за <strong>3 эпох</strong> с достижением 
-                    <strong>100.0% точности</strong> на обучающей выборке.</li>
+                <li>Обучение по правилу Розенблатта завершилось за <strong>)" << data.totalEpochs << R"( эпох</strong> с достижением 
+                    <strong>)" << std::setprecision(1) << (100.0 * data.correctCount / data.totalCount) << R"(% точности</strong> на обучающей выборке.</li>
                 <li>Нейроны скрытого слоя сформировали «разделяющие прямые», позволяющие выделить 
                     области |x| > 0.35 и |x| < -0.35, что соответствует условию y ≥ 0.12.</li>
             </ul>
@@ -841,3 +890,11 @@ int main() {
 
 </body>
 </html>
+)";
+
+    file << html.str();
+    file.close();
+    
+    return true;
+}
+

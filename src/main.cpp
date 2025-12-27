@@ -6,6 +6,7 @@
 #include <cmath>
 #include <iomanip>
 #include <sstream>
+#include "report_generator.h"
 
 struct DataPoint {
     double x;
@@ -504,6 +505,57 @@ int main() {
     std::cout << "\nКлючевая идея: нейроны скрытого слоя формируют несколько" << std::endl;
     std::cout << "'разделяющих прямых', а выходной нейрон объединяет их" << std::endl;
     std::cout << "результаты, позволяя выделять невыпуклые области." << std::endl;
+
+    // ============================================
+    // Генерация HTML-отчёта
+    // ============================================
+    std::cout << "\n";
+    printSeparator();
+    std::cout << "ГЕНЕРАЦИЯ HTML-ОТЧЁТА" << std::endl;
+    printSeparator();
+
+    ReportData reportData;
+    reportData.numInputs = 1;
+    reportData.numHidden = 5;
+    reportData.numOutputs = 1;
+    reportData.learningRate = eta;
+    reportData.binaryThreshold = binaryThreshold;
+    reportData.totalEpochs = totalEpochs;
+    reportData.correctCount = correctFinal;
+    reportData.totalCount = static_cast<int>(data.size());
+    reportData.weightsBefore = weightsBefore;
+    reportData.weightsAfter = weightsAfter;
+
+    // Заполняем веса скрытого слоя
+    for (const auto& neuron : hiddenFinal) {
+        reportData.hiddenWeights.push_back({
+            neuron.getWeights()[0],
+            neuron.getBias()
+        });
+    }
+
+    // Заполняем результаты
+    for (const auto& point : data) {
+        float inputX = static_cast<float>(point.x);
+        int target = (point.y >= binaryThreshold) ? 1 : 0;
+        int output = mlp.forwardPass(inputX);
+        reportData.results.push_back({point.x, point.y, target, output});
+    }
+
+    // Генерируем отчёт
+    std::string htmlPath = "../index.html";
+    if (generateHtmlReport(reportData, htmlPath)) {
+        std::cout << "\nHTML-отчёт успешно создан: " << htmlPath << std::endl;
+    } else {
+        // Пробуем создать в текущей папке
+        htmlPath = "index.html";
+        if (generateHtmlReport(reportData, htmlPath)) {
+            std::cout << "\nHTML-отчёт успешно создан: " << htmlPath << std::endl;
+        } else {
+            std::cerr << "\nОшибка: не удалось создать HTML-отчёт" << std::endl;
+        }
+    }
+
     std::cout << std::endl;
 
     return 0;
