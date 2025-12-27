@@ -715,7 +715,7 @@ bool generateHtmlReport(const ReportData& data, const std::string& outputPath) {
         </table>
 
         <!-- 4. ОБУЧАЮЩИЕ ДАННЫЕ -->
-        <h2>4. Обучающие данные</h2>
+        <h2 style="margin-top: 100px;">4. Обучающие данные</h2>
 
         <p>
             Для обучения использована функция <strong>y = x²</strong> на интервале <strong>[-0.5, 0.5]</strong>. 
@@ -807,7 +807,7 @@ bool generateHtmlReport(const ReportData& data, const std::string& outputPath) {
         </table>
 
         <!-- 6. ГРАФИЧЕСКОЕ ПРЕДСТАВЛЕНИЕ -->
-        <h2>6. Графическое представление результатов</h2>
+        <h2 style="margin-top: 200px;">6. Графическое представление результатов</h2>
 )";
 
     html << generateSVGGraph();
